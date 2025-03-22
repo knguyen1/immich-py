@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "immich-py"
+version = "0.1.0"
+description = "Python-based CLI for interacting with immich"
+authors = ["Kyle Nguyen <yurameki@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include="immich-py"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+httpx = "^0.28.1"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+pre-commit = "^4.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
