@@ -196,7 +196,7 @@ pre-commit install
 
 ```bash
 # Run unit tests
-poetry run pytest tests/api
+poetry run pytest tests/unit
 
 # Run integration tests (requires access to an Immich server)
 export IMMICH_TEST_SERVER_URL="https://your-immich-server.com"
