@@ -1,4 +1,5 @@
-# Copyright 2025 Kyle Nguyen
+# Copyright (c) 2025. All rights reserved.
+# Licensed under the MIT License. See LICENSE file for details.
 """Additional tests for the immich_py.client module."""
 
 import json

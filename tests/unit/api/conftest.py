@@ -1,4 +1,5 @@
-# Copyright 2025 Kyle Nguyen
+# Copyright (c) 2025. All rights reserved.
+# Licensed under the MIT License. See LICENSE file for details.
 """Common fixtures for API tests."""
 
 from unittest.mock import MagicMock
