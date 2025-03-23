@@ -18,7 +18,7 @@ rich = "^13.9.4"
 performance = ["xxhash"]
 
 [tool.poetry.scripts]
-immich = "immich_py.cli:main"
+immich-py = "immich_py.cli:main"
 
 
 [tool.poetry.group.dev.dependencies]

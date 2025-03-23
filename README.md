@@ -28,7 +28,7 @@ export IMMICH_ENDPOINT="https://your-immich-server.com"
 export IMMICH_API_KEY="your-api-key"
 
 # Or provide them as command-line options
-immich --endpoint "https://your-immich-server.com" --api-key "your-api-key" <command>
+immich-py --endpoint "https://your-immich-server.com" --api-key "your-api-key" <command>
 ```
 
 ### Commands
@@ -44,12 +44,12 @@ The CLI provides commands for interacting with various aspects of the Immich API
 For more information on a specific command, use the `--help` option:
 
 ```bash
-immich --help
-immich server --help
-immich asset --help
-immich album --help
-immich tag --help
-immich job --help
+immich-py --help
+immich-py server --help
+immich-py asset --help
+immich-py album --help
+immich-py tag --help
+immich-py job --help
 ```
 
 ### Examples
@@ -58,110 +58,110 @@ immich job --help
 
 ```bash
 # Ping the server
-immich server ping
+immich-py server ping
 
 # Get server statistics
-immich server stats
+immich-py server stats
 
 # Get asset statistics
-immich server asset-stats
+immich-py server asset-stats
 
 # Get supported media types
-immich server media-types
+immich-py server media-types
 
 # Get server information
-immich server about
+immich-py server about
 
 # Check if a file extension is supported
-immich server check-extension .jpg
+immich-py server check-extension .jpg
 ```
 
 #### Asset Commands
 
 ```bash
 # List assets
-immich asset list
+immich-py asset list
 
 # Get information about an asset
-immich asset info <asset-id>
+immich-py asset info <asset-id>
 
 # Download an asset
-immich asset download <asset-id> --output <output-path>
+immich-py asset download <asset-id> --output <output-path>
 
 # Upload an asset
-immich asset upload <file-path>
+immich-py asset upload <file-path>
 
 # Upload a directory or archive of assets recursively
-immich asset upload <directory-or-archive-path> --recursive
+immich-py asset upload <directory-or-archive-path> --recursive
 
 # Upload with a sidecar file (for single file uploads)
-immich asset upload <file-path> --sidecar-path <sidecar-path>
+immich-py asset upload <file-path> --sidecar-path <sidecar-path>
 
 # Upload and add to albums (creates albums if they don't exist)
-immich asset upload <file-path> --album "Vacation" --album "Family"
+immich-py asset upload <file-path> --album "Vacation" --album "Family"
 
 # Upload recursively and add all assets to albums
-immich asset upload <directory-or-archive-path> --recursive --album "Summer 2024"
+immich-py asset upload <directory-or-archive-path> --recursive --album "Summer 2024"
 
 # Delete assets
-immich asset delete <asset-id-1> <asset-id-2> ...
+immich-py asset delete <asset-id-1> <asset-id-2> ...
 
 # Update an asset
-immich asset update <asset-id> --favorite --description "New description"
+immich-py asset update <asset-id> --favorite --description "New description"
 
 # Update multiple assets
-immich asset batch-update <asset-id-1> <asset-id-2> ... --favorite
+immich-py asset batch-update <asset-id-1> <asset-id-2> ... --favorite
 ```
 
 #### Album Commands
 
 ```bash
 # List albums
-immich album list
+immich-py album list
 
 # Get information about an album
-immich album info <album-id>
+immich-py album info <album-id>
 
 # Create an album
-immich album create "My Album" --description "My album description" --asset-id <asset-id-1> --asset-id <asset-id-2>
+immich-py album create "My Album" --description "My album description" --asset-id <asset-id-1> --asset-id <asset-id-2>
 
 # Add assets to an album
-immich album add-assets <album-id> <asset-id-1> <asset-id-2> ...
+immich-py album add-assets <album-id> <asset-id-1> <asset-id-2> ...
 
 # Delete an album
-immich album delete <album-id>
+immich-py album delete <album-id>
 
 # Get albums that an asset belongs to
-immich album asset-albums <asset-id>
+immich-py album asset-albums <asset-id>
 ```
 
 #### Tag Commands
 
 ```bash
 # List tags
-immich tag list
+immich-py tag list
 
 # Create or update tags
-immich tag create "tag1" "tag2" "tag3"
+immich-py tag create "tag1" "tag2" "tag3"
 
 # Tag assets
-immich tag tag-assets <tag-id> <asset-id-1> <asset-id-2> ...
+immich-py tag tag-assets <tag-id> <asset-id-1> <asset-id-2> ...
 
 # Tag multiple assets with multiple tags
-immich tag bulk-tag-assets --tag-id <tag-id-1> --tag-id <tag-id-2> <asset-id-1> <asset-id-2> ...
+immich-py tag bulk-tag-assets --tag-id <tag-id-1> --tag-id <tag-id-2> <asset-id-1> <asset-id-2> ...
 ```
 
 #### Job Commands
 
 ```bash
 # List jobs
-immich job list
+immich-py job list
 
 # Send a command to a job
-immich job command <job-id> <command> --force
+immich-py job command <job-id> <command> --force
 
 # Create a job
-immich job create <job-name>
+immich-py job create <job-name>
 ```
 
 ## Library Usage
