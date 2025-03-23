@@ -240,7 +240,7 @@ class AssetAPI:
             }
 
         # Get file size for progress reporting
-        file_size = Path.stat().st_size(file_path)
+        file_size = Path(file_path).stat().st_size
 
         # Create progress callback
         progress_callback = None

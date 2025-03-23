@@ -66,10 +66,14 @@ class TestUploadUtils:
         assert not is_supported_archive("test.txt")
         assert not is_supported_archive(Path("test.jpg"))
 
-    def test_extract_archive(self):
+    def test_extract_archive(self, monkeypatch):
         """Test extract_archive function."""
         extract_dir = os.path.join(self.temp_dir, "extract")
         os.makedirs(extract_dir, exist_ok=True)
+
+        # Mock click.echo to capture calls
+        echo_calls = []
+        monkeypatch.setattr("click.echo", lambda msg: echo_calls.append(msg))
 
         # Extract the test archive
         extract_archive(self.archive_path, extract_dir)
@@ -79,7 +83,27 @@ class TestUploadUtils:
             extracted_path = os.path.join(extract_dir, file_name)
             assert os.path.exists(extracted_path)
 
+        # Verify that the expected messages were echoed
+        assert any(
+            f"Archive detected: {os.path.basename(self.archive_path)}" in call
+            for call in echo_calls
+        )
+        assert any(f"Extracting to: {extract_dir}" in call for call in echo_calls)
+
+        # Verify progress messages were echoed
+        progress_messages = [
+            call
+            for call in echo_calls
+            if f"{os.path.basename(self.archive_path)}:" in call
+        ]
+        assert len(progress_messages) > 0
+
+        # The last progress message should show 100% completion
+        last_progress = progress_messages[-1]
+        assert "100.0%" in last_progress or "100%" in last_progress
+
         # Test with unsupported format
+        echo_calls.clear()
         with pytest.raises(ValueError, match=r"Unsupported archive format:*"):
             extract_archive(self.test_files[0], extract_dir)
 
@@ -99,10 +123,14 @@ class TestUploadUtils:
         for call in upload_func.call_args_list:
             assert call[1]["test_arg"] == "test_value"
 
-    def test_process_archive(self):
+    def test_process_archive(self, monkeypatch):
         """Test process_archive function."""
         # Create a mock upload function
         upload_func = MagicMock(return_value={"id": "test-id", "status": "created"})
+
+        # Mock click.echo to capture calls
+        echo_calls = []
+        monkeypatch.setattr("click.echo", lambda msg: echo_calls.append(msg))
 
         # Process the archive
         results = process_archive(self.archive_path, upload_func, test_arg="test_value")
@@ -114,6 +142,16 @@ class TestUploadUtils:
         # Check that the kwargs were passed correctly
         for call in upload_func.call_args_list:
             assert call[1]["test_arg"] == "test_value"
+
+        # Verify that the expected messages were echoed
+        assert any(
+            f"Archive detected: {os.path.basename(self.archive_path)}" in call
+            for call in echo_calls
+        )
+        assert any(
+            f"Extraction of {os.path.basename(self.archive_path)} complete" in call
+            for call in echo_calls
+        )
 
     def test_process_upload_path_file(self):
         """Test process_upload_path with a file."""

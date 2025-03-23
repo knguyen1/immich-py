@@ -58,14 +58,31 @@ def extract_archive(archive_path: str | Path, extract_dir: str | Path) -> None:
     ------
         ValueError: If the archive format is not supported.
     """
+    import click
+
     archive_path = Path(archive_path)
     extract_dir = Path(extract_dir)
 
     lower_suffix = archive_path.suffix.lower()
 
+    # Echo that an archive is detected
+    click.echo(f"Archive detected: {archive_path.name}")
+    click.echo(f"Extracting to: {extract_dir}")
+
     if lower_suffix == ".zip":
         with zipfile.ZipFile(archive_path, "r") as zip_ref:
-            zip_ref.extractall(extract_dir)  # noqa: S202
+            # Get total number of files
+            file_list = zip_ref.namelist()
+            total_files = len(file_list)
+
+            # Extract files with progress
+            for i, file in enumerate(file_list, 1):
+                zip_ref.extract(file, extract_dir)
+                percent = (i / total_files) * 100
+                click.echo(
+                    f"\r{archive_path.name}: {i} / {total_files} ({percent:.1f}%)"
+                )
+            click.echo("\n")  # Print a newline after the progress is complete
     elif lower_suffix in [
         ".tar",
         ".gz",
@@ -76,12 +93,24 @@ def extract_archive(archive_path: str | Path, extract_dir: str | Path) -> None:
         ".txz",
     ] or archive_path.name.endswith((".tar.gz", ".tar.bz2", ".tar.xz")):
         with tarfile.open(archive_path) as tar_ref:
-            # Filter out potentially dangerous paths
-            for member in tar_ref.getmembers():
+            # Get total number of files
+            members = tar_ref.getmembers()
+            total_files = len(members)
+            extracted_count = 0
+
+            # Filter out potentially dangerous paths and extract with progress
+            for member in members:
                 member_path = Path(member.name)
                 if member_path.is_absolute() or ".." in member_path.parts:
                     continue  # Skip potentially dangerous paths
+
                 tar_ref.extract(member, extract_dir)
+                extracted_count += 1
+                percent = (extracted_count / total_files) * 100
+                click.echo(
+                    f"\r{archive_path.name}: {extracted_count} / {total_files} ({percent:.1f}%)"
+                )
+            click.echo("\n")  # Print a newline after the progress is complete
     else:
         msg = f"Unsupported archive format: {archive_path}"
         raise ValueError(msg)
@@ -189,6 +218,8 @@ def process_archive(
     ------
         ValueError: If the archive format is not supported.
     """
+    import click
+
     archive_path = Path(archive_path)
 
     if not is_supported_archive(archive_path):
@@ -199,6 +230,9 @@ def process_archive(
     with tempfile.TemporaryDirectory() as temp_dir:
         # Extract the archive
         extract_archive(archive_path, temp_dir)
+
+        # Echo completion of extraction
+        click.echo(f"Extraction of {archive_path.name} complete. Processing files...")
 
         # Process the extracted files
         return process_directory(temp_dir, upload_func, **kwargs)
