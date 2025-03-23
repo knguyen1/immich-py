@@ -113,11 +113,37 @@ def test_image_path() -> Path:
     test_files_dir = Path(__file__).parent / "test_files"
     test_files_dir.mkdir(exist_ok=True)
 
-    test_image = test_files_dir / "test_image.jpg"
-    if not test_image.exists():
-        pytest.skip(f"Test image not found at {test_image}")
+    return test_files_dir / "test_image.jpg"
 
-    return test_image
+
+@pytest.fixture
+def sample_image(test_image_path: Path) -> Path:
+    """
+    Ensure we have a sample image for testing.
+
+    Args:
+        test_image_path: Path to test image from conftest
+
+    Returns:
+        Path: Path to sample image
+    """
+    # If test_image_path doesn't exist, create a simple test image
+    if not test_image_path.exists():
+        # Create a simple test image using PIL if available
+        try:
+            from PIL import Image
+
+            # Create a 100x100 red image
+            img = Image.new("RGB", (100, 100), color="red")
+            img.save(test_image_path)
+        except ImportError:
+            # If PIL is not available, create an empty file
+            # This will be skipped in the test
+            with open(test_image_path, "wb") as f:
+                f.write(b"")
+            pytest.skip("PIL not available to create test image")
+
+    return test_image_path
 
 
 @pytest.fixture

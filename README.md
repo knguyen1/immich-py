@@ -91,6 +91,12 @@ immich asset download <asset-id> --output <output-path>
 # Upload an asset
 immich asset upload <file-path>
 
+# Upload a directory or archive of assets recursively
+immich asset upload <directory-or-archive-path> --recursive
+
+# Upload with a sidecar file (for single file uploads)
+immich asset upload <file-path> --sidecar-path <sidecar-path>
+
 # Delete assets
 immich asset delete <asset-id-1> <asset-id-2> ...
 
@@ -171,6 +177,15 @@ client.ping_server()
 # Or use the API classes
 asset_api = AssetAPI(client)
 assets = asset_api.get_all_assets()
+
+# Upload a single asset
+result = asset_api.upload_asset("path/to/image.jpg")
+
+# Upload multiple assets from a directory or archive
+# This can handle directories, zip/tar archives, and individual files
+results = asset_api.upload_assets("path/to/directory")
+results = asset_api.upload_assets("path/to/archive.zip")
+result = asset_api.upload_assets("path/to/image.jpg", sidecar_path="path/to/metadata.json")
 
 album_api = AlbumAPI(client)
 albums = album_api.get_all_albums()

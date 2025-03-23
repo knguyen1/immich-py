@@ -166,7 +166,12 @@ def download(ctx: click.Context, asset_id: str, output: str | None) -> None:
 @click.option(
     "--sidecar-path",
     type=click.Path(exists=True),
-    help="Path to a sidecar file to upload.",
+    help="Path to a sidecar file to upload (only used for single file uploads).",
+)
+@click.option(
+    "--recursive/--no-recursive",
+    default=False,
+    help="Process directories and archives recursively.",
 )
 @click.pass_context
 def upload(
@@ -177,22 +182,52 @@ def upload(
     favorite: bool,
     archived: bool,
     sidecar_path: str | None,
+    recursive: bool,
 ) -> None:
-    """Upload an asset."""
+    """
+    Upload an asset, directory of assets, or archive of assets.
+
+    If --recursive is specified and the file_path is a directory, all assets in the directory
+    will be uploaded. If file_path is an archive (zip, tar, etc.), it will be extracted to a
+    temporary directory and all assets will be uploaded.
+    """
     client = ctx.obj["client"]
     asset_api = AssetAPI(client)
 
     try:
-        result = asset_api.upload_asset(
-            file_path,
-            device_asset_id=device_asset_id,
-            device_id=device_id,
-            is_favorite=favorite,
-            is_archived=archived,
-            sidecar_path=sidecar_path,
-        )
-        click.echo(f"Asset uploaded with ID: {result.get('id')}")
-        click.echo(f"Status: {result.get('status')}")
+        if recursive:
+            results = asset_api.upload_assets(
+                file_path,
+                device_asset_id=device_asset_id,
+                device_id=device_id,
+                is_favorite=favorite,
+                is_archived=archived,
+                sidecar_path=sidecar_path,
+            )
+
+            # Handle the case where a single file was uploaded
+            if isinstance(results, dict):
+                click.echo(f"Asset uploaded with ID: {results.get('id')}")
+                click.echo(f"Status: {results.get('status')}")
+            else:
+                # Handle the case where multiple files were uploaded
+                click.echo(f"Uploaded {len(results)} assets:")
+                for i, result in enumerate(results, 1):
+                    click.echo(
+                        f"  {i}. ID: {result.get('id')}, Status: {result.get('status')}"
+                    )
+        else:
+            # Use the original upload_asset method for single file uploads
+            result = asset_api.upload_asset(
+                file_path,
+                device_asset_id=device_asset_id,
+                device_id=device_id,
+                is_favorite=favorite,
+                is_archived=archived,
+                sidecar_path=sidecar_path,
+            )
+            click.echo(f"Asset uploaded with ID: {result.get('id')}")
+            click.echo(f"Status: {result.get('status')}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
 

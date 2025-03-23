@@ -11,39 +11,6 @@ from immich_py.api.client import ImmichClient
 
 
 @pytest.fixture
-def sample_image(test_image_path: Path) -> Path:
-    """
-    Ensure we have a sample image for testing.
-
-    Args:
-        test_image_path: Path to test image from conftest
-
-    Returns:
-        Path: Path to sample image
-    """
-    # If test_image_path doesn't exist, create a simple test image
-    if not test_image_path.exists():
-        # Create test_files directory if it doesn't exist
-        test_image_path.parent.mkdir(exist_ok=True)
-
-        # Create a simple test image using PIL if available
-        try:
-            from PIL import Image
-
-            # Create a 100x100 red image
-            img = Image.new("RGB", (100, 100), color="red")
-            img.save(test_image_path)
-        except ImportError:
-            # If PIL is not available, create an empty file
-            # This will be skipped in the test
-            with open(test_image_path, "wb") as f:
-                f.write(b"")
-            pytest.skip("PIL not available to create test image")
-
-    return test_image_path
-
-
-@pytest.fixture
 def uploaded_asset(
     integration_client: ImmichClient, sample_image: Path
 ) -> Generator[dict, None, None]:

@@ -9,6 +9,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import immich_py.api.upload_utils
 from immich_py.models.asset import Asset
 
 
@@ -220,6 +221,82 @@ class AssetAPI:
             duration=duration,
             is_read_only=is_read_only,
             sidecar_path=sidecar_path,
+        )
+
+    def upload_assets(
+        self,
+        file_path: str | Path,
+        *,
+        device_asset_id: str | None = None,
+        device_id: str | None = None,
+        is_favorite: bool = False,
+        is_archived: bool = False,
+        file_created_at: datetime | None = None,
+        file_modified_at: datetime | None = None,
+        duration: str = "00:00:00.000000",
+        is_read_only: bool = False,
+        sidecar_path: str | Path | None = None,
+    ) -> list[dict[str, Any]] | dict[str, Any]:
+        """
+        Upload assets from a file, directory, or archive.
+
+        If the path is a directory, upload all assets in the directory.
+        If the path is an archive, extract it and upload all assets.
+        If the path is a file, upload it directly.
+
+        Args:
+            file_path: The path to the file, directory, or archive.
+            device_asset_id: The device asset ID.
+            device_id: The device ID.
+            is_favorite: Whether the assets are favorites.
+            is_archived: Whether the assets are archived.
+            file_created_at: The creation date of the files.
+            file_modified_at: The modification date of the files.
+            duration: The duration of the assets (for videos).
+            is_read_only: Whether the assets are read-only.
+            sidecar_path: The path to a sidecar file to upload (only used for single file uploads).
+
+        Returns
+        -------
+            A list of responses from the server if multiple files were uploaded,
+            or a single response if only one file was uploaded.
+
+        Raises
+        ------
+            ImmichClientError: If the request fails.
+            FileNotFoundError: If the file, directory, or archive does not exist.
+            ValueError: If the archive format is not supported.
+        """
+
+        # Create a wrapper function that matches the expected signature for process_upload_path
+        def upload_wrapper(path: str | Path, **upload_kwargs: Any) -> dict[str, Any]:
+            # Extract sidecar_path from kwargs if it exists
+            sidecar = upload_kwargs.pop("sidecar_path", None)
+            return self.client.upload_asset(path, sidecar_path=sidecar, **upload_kwargs)
+
+        # Prepare kwargs for the upload function
+        kwargs = {
+            "device_asset_id": device_asset_id,
+            "device_id": device_id,
+            "is_favorite": is_favorite,
+            "is_archived": is_archived,
+            "file_created_at": file_created_at,
+            "file_modified_at": file_modified_at,
+            "duration": duration,
+            "is_read_only": is_read_only,
+        }
+
+        # Only include sidecar_path if it's not None and the file_path is not a directory or archive
+        file_path_obj = Path(file_path)
+        if (
+            sidecar_path is not None
+            and file_path_obj.is_file()
+            and not file_path_obj.is_dir()
+        ):
+            kwargs["sidecar_path"] = sidecar_path
+
+        return immich_py.api.upload_utils.process_upload_path(
+            file_path, upload_wrapper, **kwargs
         )
 
     def replace_asset(
