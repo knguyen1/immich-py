@@ -57,6 +57,11 @@ src/testTestingRootWkspc/coverageWorkspace/.coverage
 .pytest_cache
 .ruff_cache
 dist
+# PyInstaller build artifacts
+*.spec
+build/immich-py/
+immich-py
+immich-py.exe
 
 .vscode/*
 !.vscode/settings.json
@@ -70,3 +75,4 @@ dist
 
 # Built Visual Studio Code Extensions
 *.vsix
+build/
