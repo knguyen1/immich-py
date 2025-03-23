@@ -73,7 +73,7 @@ class TestUploadUtils:
 
         # Mock click.echo to capture calls
         echo_calls = []
-        monkeypatch.setattr("click.echo", lambda msg: echo_calls.append(msg))
+        monkeypatch.setattr("click.echo", lambda msg, nl=True: echo_calls.append(msg))
 
         # Extract the test archive
         extract_archive(self.archive_path, extract_dir)
@@ -130,7 +130,7 @@ class TestUploadUtils:
 
         # Mock click.echo to capture calls
         echo_calls = []
-        monkeypatch.setattr("click.echo", lambda msg: echo_calls.append(msg))
+        monkeypatch.setattr("click.echo", lambda msg, nl=True: echo_calls.append(msg))
 
         # Process the archive
         results = process_archive(self.archive_path, upload_func, test_arg="test_value")
