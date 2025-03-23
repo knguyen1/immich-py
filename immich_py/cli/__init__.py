@@ -6,6 +6,4 @@ CLI modules for the Immich API.
 This package contains CLI modules for interacting with the Immich API.
 """
 
-from .main import main
-
-__all__ = ["main"]
+from .main import main  # noqa: F401

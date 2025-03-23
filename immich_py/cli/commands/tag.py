@@ -9,9 +9,11 @@ This module contains CLI commands for interacting with tags in the Immich API.
 import click
 
 from immich_py.api.tag import TagAPI
+from immich_py.cli.utils import validate_client
 
 
 @click.group(name="tag")
+@validate_client
 def tag() -> None:
     """Commands for interacting with tags."""
 

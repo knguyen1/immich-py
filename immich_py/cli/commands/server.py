@@ -11,11 +11,13 @@ import json
 import click
 
 from immich_py.api.server import ServerAPI
+from immich_py.cli.utils import validate_client
 
 # ruff: noqa: BLE001
 
 
 @click.group(name="server")
+@validate_client
 def server() -> None:
     """Commands for interacting with the Immich server."""
 

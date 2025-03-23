@@ -11,11 +11,13 @@ import json
 import click
 
 from immich_py.api.album import AlbumAPI
+from immich_py.cli.utils import validate_client
 
 # ruff: noqa: BLE001
 
 
 @click.group(name="album")
+@validate_client
 def album() -> None:
     """Commands for interacting with albums."""
 

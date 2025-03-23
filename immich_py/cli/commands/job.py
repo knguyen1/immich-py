@@ -11,10 +11,12 @@ import json
 import click
 
 from immich_py.api.job import JobAPI
+from immich_py.cli.utils import validate_client
 from immich_py.models.job import JobCommand, JobName
 
 
 @click.group(name="job")
+@validate_client
 def job() -> None:
     """Commands for interacting with jobs."""
 

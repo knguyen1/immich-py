@@ -14,6 +14,7 @@ import click
 
 from immich_py.api.album import AlbumAPI
 from immich_py.api.asset import AssetAPI
+from immich_py.cli.utils import validate_client
 
 # ruff: noqa: BLE001
 
@@ -63,6 +64,7 @@ def _add_to_albums(
 
 
 @click.group(name="asset")
+@validate_client
 def asset() -> None:
     """Commands for interacting with assets."""
 

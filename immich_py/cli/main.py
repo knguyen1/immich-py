@@ -23,14 +23,12 @@ from . import commands
     "-e",
     envvar="IMMICH_ENDPOINT",
     help="Immich API endpoint URL. Can also be set with IMMICH_ENDPOINT environment variable.",
-    required=True,
 )
 @click.option(
     "--api-key",
     "-k",
     envvar="IMMICH_API_KEY",
     help="Immich API key. Can also be set with IMMICH_API_KEY environment variable.",
-    required=True,
 )
 @click.option(
     "--no-verify-ssl",
@@ -79,12 +77,16 @@ def main(
 ) -> None:
     """Command-line interface for interacting with the Immich API."""
     # Create the Immich client
-    client = ImmichClient(
-        endpoint=endpoint,
-        api_key=api_key,
-        verify_ssl=not no_verify_ssl,
-        timeout=timeout,
-        dry_run=dry_run,
+    client = (
+        ImmichClient(
+            endpoint=endpoint,
+            api_key=api_key,
+            verify_ssl=not no_verify_ssl,
+            timeout=timeout,
+            dry_run=dry_run,
+        )
+        if endpoint and api_key
+        else None
     )
 
     # Configure progress bar settings
