@@ -217,6 +217,27 @@ poetry install
 pre-commit install
 ```
 
+### Building the Executable
+
+The project includes support for building a standalone executable using PyInstaller. This is useful for distributing the CLI without requiring users to install Python or any dependencies.
+
+```bash
+# Build the executable
+poetry run build-executable
+```
+
+This will create an executable in the `build/executable` directory.
+
+#### GitHub Release Integration
+
+The project includes a GitHub workflow that automatically builds executables for Windows, macOS, and Linux when a new release is created on GitHub. The executables are attached to the release as assets.
+
+To create a new release:
+
+1. Create a new tag and push it to GitHub
+2. Create a new release on GitHub using the tag
+3. The workflow will automatically build and attach the executables to the release
+
 ### Testing
 
 ```bash

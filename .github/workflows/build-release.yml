@@ -1,0 +1,87 @@
+name: Build and Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    name: Build Executable
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.12']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Install Poetry
+      uses: snok/install-poetry@v1
+      with:
+        version: 1.8.2
+        virtualenvs-create: true
+        virtualenvs-in-project: true
+
+    - name: Install dependencies
+      run: |
+        poetry install --with dev
+
+    - name: Build executable
+      run: |
+        poetry install
+        poetry run build-executable
+
+    - name: Rename executable for Windows
+      if: matrix.os == 'windows-latest'
+      run: |
+        mv build/executable/immich-py.exe build/executable/immich-py-windows.exe
+
+    - name: Rename executable for macOS
+      if: matrix.os == 'macos-latest'
+      run: |
+        mv build/executable/immich-py build/executable/immich-py-macos
+
+    - name: Rename executable for Linux
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        mv build/executable/immich-py build/executable/immich-py-linux
+
+    - name: Upload Windows executable
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: build/executable/immich-py-windows.exe
+        asset_name: immich-py-windows.exe
+        asset_content_type: application/octet-stream
+
+    - name: Upload macOS executable
+      if: matrix.os == 'macos-latest'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: build/executable/immich-py-macos
+        asset_name: immich-py-macos
+        asset_content_type: application/octet-stream
+
+    - name: Upload Linux executable
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ github.event.release.upload_url }}
+        asset_path: build/executable/immich-py-linux
+        asset_name: immich-py-linux
+        asset_content_type: application/octet-stream

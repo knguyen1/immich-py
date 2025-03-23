@@ -19,6 +19,7 @@ performance = ["xxhash"]
 
 [tool.poetry.scripts]
 immich-py = "immich_py.cli:main"
+build-executable = "build_executable:build_executable"
 
 
 [tool.poetry.group.dev.dependencies]
