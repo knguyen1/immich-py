@@ -331,7 +331,19 @@ def _display_upload_results(results: list[dict[str, Any]] | dict[str, Any]) -> N
     """
     # Handle the case where a single file was uploaded
     if isinstance(results, dict):
+        # Get filename from the result if available
+        filename = results.get("filename")
+
+        # If not available in the result, try to extract from message
+        if not filename and results.get("message"):
+            # For skipped files, the filename is in the message
+            message = results.get("message", "")
+            if "Asset " in message and " already uploaded" in message:
+                filename = message.split("Asset ")[1].split(" already uploaded")[0]
+
         click.echo(f"Asset uploaded with ID: {results.get('id')}")
+        if filename:
+            click.echo(f"Filename: {filename}")
         click.echo(f"Status: {results.get('status')}")
         if results.get("message"):
             click.echo(f"Message: {results.get('message')}")
@@ -340,9 +352,20 @@ def _display_upload_results(results: list[dict[str, Any]] | dict[str, Any]) -> N
         click.echo(f"Uploaded {len(results)} assets:")
 
         for i, result in enumerate(results, 1):
-            status_msg = (
-                f"  {i}. ID: {result.get('id')}, Status: {result.get('status')}"
-            )
+            # Get filename from the result if available
+            filename = result.get("filename")
+
+            # If not available in the result, try to extract from message
+            if not filename and result.get("message"):
+                # For skipped files, the filename is in the message
+                message = result.get("message", "")
+                if "Asset " in message and " already uploaded" in message:
+                    filename = message.split("Asset ")[1].split(" already uploaded")[0]
+
+            status_msg = f"  {i}. ID: {result.get('id')}"
+            if filename:
+                status_msg += f", Filename: {filename}"
+            status_msg += f", Status: {result.get('status')}"
             if result.get("message"):
                 status_msg += f", Message: {result.get('message')}"
             click.echo(status_msg)

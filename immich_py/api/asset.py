@@ -236,6 +236,7 @@ class AssetAPI:
             return {
                 "id": "skipped",
                 "status": "skipped",
+                "filename": file_path.name,
                 "message": f"Asset {file_path.name} already uploaded (hash: {file_hash})",
             }
 
@@ -267,6 +268,9 @@ class AssetAPI:
             # If upload was successful, add the hash to the database
             if result.get("status") in ["created", "replaced", "duplicate"]:
                 self._hash_db.add_hash(file_hash)
+
+            # Add filename to the result
+            result["filename"] = file_path.name
 
             # Mark progress as done with hash if successful
             if show_progress and progress_callback:
