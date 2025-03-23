@@ -97,6 +97,12 @@ immich asset upload <directory-or-archive-path> --recursive
 # Upload with a sidecar file (for single file uploads)
 immich asset upload <file-path> --sidecar-path <sidecar-path>
 
+# Upload and add to albums (creates albums if they don't exist)
+immich asset upload <file-path> --album "Vacation" --album "Family"
+
+# Upload recursively and add all assets to albums
+immich asset upload <directory-or-archive-path> --recursive --album "Summer 2024"
+
 # Delete assets
 immich asset delete <asset-id-1> <asset-id-2> ...
 
@@ -189,6 +195,10 @@ result = asset_api.upload_assets("path/to/image.jpg", sidecar_path="path/to/meta
 
 album_api = AlbumAPI(client)
 albums = album_api.get_all_albums()
+
+# Create an album and add assets to it
+album = album_api.create_album("Vacation Photos")
+album_api.add_assets_to_album(album.id, ["asset-id-1", "asset-id-2"])
 ```
 
 ## Development

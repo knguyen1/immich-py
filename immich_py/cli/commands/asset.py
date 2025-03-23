@@ -8,12 +8,58 @@ This module contains CLI commands for interacting with assets in the Immich API.
 
 import json
 from pathlib import Path
+from typing import Any
 
 import click
 
+from immich_py.api.album import AlbumAPI
 from immich_py.api.asset import AssetAPI
 
 # ruff: noqa: BLE001
+
+
+def _add_to_albums(
+    client: Any,
+    asset_ids: list[str],
+    album_names: tuple[str, ...],
+    album_cache: dict[str, str],
+) -> dict[str, str]:
+    """
+    Add assets to one or more albums. If an album doesn't exist, it will be created.
+
+    Args:
+        client: The Immich client.
+        asset_ids: The IDs of the assets to add.
+        album_names: The names of the albums.
+        album_cache: A dictionary mapping album names to album IDs.
+
+    Returns
+    -------
+        The updated album cache.
+    """
+    album_api = AlbumAPI(client)
+
+    for album_name in album_names:
+        # Check if album exists in cache
+        album_id = album_cache.get(album_name)
+
+        # Create album if it doesn't exist
+        if album_id is None:
+            new_album = album_api.create_album(album_name)
+            album_id = new_album.id
+            album_cache[album_name] = album_id
+            click.echo(f"Created album '{album_name}' with ID: {album_id}")
+
+        # Add assets to album
+        result = album_api.add_assets_to_album(album_id, asset_ids)
+
+        # Report results
+        success_count = sum(1 for item in result if item.get("success"))
+        click.echo(
+            f"Added {success_count} of {len(asset_ids)} assets to album '{album_name}'"
+        )
+
+    return album_cache
 
 
 @click.group(name="asset")
@@ -144,6 +190,164 @@ def download(ctx: click.Context, asset_id: str, output: str | None) -> None:
         click.echo(f"Error: {e}", err=True)
 
 
+class UploadHelper:
+    """Helper class for asset upload operations."""
+
+    def __init__(self, client: Any, album_names: tuple[str, ...] = ()):
+        """
+        Initialize the UploadHelper.
+
+        Args:
+            client: The Immich client.
+            album_names: Names of albums to add assets to.
+        """
+        self.client = client
+        self.asset_api = AssetAPI(client)
+        self.album_names = album_names
+        self.album_cache = {}
+
+        # Initialize album cache if album names are specified
+        if album_names:
+            album_api = AlbumAPI(client)
+            albums = album_api.get_all_albums()
+            self.album_cache = {a.album_name: a.id for a in albums}
+
+    def upload_single(
+        self,
+        file_path: str,
+        device_asset_id: str | None = None,
+        device_id: str | None = None,
+        is_favorite: bool = False,
+        is_archived: bool = False,
+        sidecar_path: str | None = None,
+        ignore_db: bool = False,
+        show_progress: bool = True,
+    ) -> dict[str, Any]:
+        """
+        Upload a single asset.
+
+        Args:
+            file_path: Path to the file to upload.
+            device_asset_id: Device asset ID.
+            device_id: Device ID.
+            is_favorite: Whether the asset is a favorite.
+            is_archived: Whether the asset is archived.
+            sidecar_path: Path to a sidecar file to upload.
+            ignore_db: Whether to ignore the hash database check.
+            show_progress: Whether to show progress.
+
+        Returns
+        -------
+            The upload result.
+        """
+        result = self.asset_api.upload_asset(
+            file_path,
+            device_asset_id=device_asset_id,
+            device_id=device_id,
+            is_favorite=is_favorite,
+            is_archived=is_archived,
+            sidecar_path=sidecar_path,
+            ignore_db=ignore_db,
+            show_progress=show_progress,
+        )
+
+        # Add to albums if specified and upload was successful
+        if self.album_names and result.get("status") in ["created", "replaced"]:
+            self._add_assets_to_albums([result.get("id")])
+
+        return result
+
+    def upload_multiple(
+        self,
+        file_path: str,
+        device_asset_id: str | None = None,
+        device_id: str | None = None,
+        is_favorite: bool = False,
+        is_archived: bool = False,
+        sidecar_path: str | None = None,
+        ignore_db: bool = False,
+    ) -> list[dict[str, Any]] | dict[str, Any]:
+        """
+        Upload multiple assets from a directory or archive.
+
+        Args:
+            file_path: Path to the directory or archive.
+            device_asset_id: Device asset ID.
+            device_id: Device ID.
+            is_favorite: Whether the assets are favorites.
+            is_archived: Whether the assets are archived.
+            sidecar_path: Path to a sidecar file to upload (only for single file).
+            ignore_db: Whether to ignore the hash database check.
+
+        Returns
+        -------
+            The upload results.
+        """
+        results = self.asset_api.upload_assets(
+            file_path,
+            device_asset_id=device_asset_id,
+            device_id=device_id,
+            is_favorite=is_favorite,
+            is_archived=is_archived,
+            sidecar_path=sidecar_path,
+            ignore_db=ignore_db,
+        )
+
+        # Handle the case where a single file was uploaded
+        if isinstance(results, dict):
+            if self.album_names and results.get("status") in ["created", "replaced"]:
+                self._add_assets_to_albums([results.get("id")])
+        else:
+            # Handle the case where multiple files were uploaded
+            # Collect successful asset IDs for album addition
+            successful_asset_ids = [
+                result.get("id")
+                for result in results
+                if result.get("status") in ["created", "replaced"]
+            ]
+
+            # Add to albums if specified and there are successful uploads
+            if self.album_names and successful_asset_ids:
+                self._add_assets_to_albums(successful_asset_ids)
+
+        return results
+
+    def _add_assets_to_albums(self, asset_ids: list[str]) -> None:
+        """
+        Add assets to the specified albums.
+
+        Args:
+            asset_ids: IDs of assets to add to albums.
+        """
+        _add_to_albums(self.client, asset_ids, self.album_names, self.album_cache)
+
+
+def _display_upload_results(results: list[dict[str, Any]] | dict[str, Any]) -> None:
+    """
+    Display the results of an upload operation.
+
+    Args:
+        results: The upload results.
+    """
+    # Handle the case where a single file was uploaded
+    if isinstance(results, dict):
+        click.echo(f"Asset uploaded with ID: {results.get('id')}")
+        click.echo(f"Status: {results.get('status')}")
+        if results.get("message"):
+            click.echo(f"Message: {results.get('message')}")
+    else:
+        # Handle the case where multiple files were uploaded
+        click.echo(f"Uploaded {len(results)} assets:")
+
+        for i, result in enumerate(results, 1):
+            status_msg = (
+                f"  {i}. ID: {result.get('id')}, Status: {result.get('status')}"
+            )
+            if result.get("message"):
+                status_msg += f", Message: {result.get('message')}"
+            click.echo(status_msg)
+
+
 @asset.command(name="upload")
 @click.argument("file_path", type=click.Path(exists=True))
 @click.option(
@@ -179,6 +383,13 @@ def download(ctx: click.Context, asset_id: str, output: str | None) -> None:
     default=False,
     help="Ignore the hash database check (but still hash and append after successful upload).",
 )
+@click.option(
+    "--album",
+    "--albums",
+    type=str,
+    multiple=True,
+    help="Album name(s) to add the uploaded asset(s) to. Can be specified multiple times. If an album doesn't exist, it will be created.",
+)
 @click.pass_context
 def upload(
     ctx: click.Context,
@@ -190,6 +401,7 @@ def upload(
     sidecar_path: str | None,
     recursive: bool,
     ignore_db: bool,
+    album: tuple[str, ...],
 ) -> None:
     """
     Upload an asset, directory of assets, or archive of assets.
@@ -200,16 +412,21 @@ def upload(
 
     The upload process can be visualized with progress bars and can utilize multiple concurrent
     uploads for better performance.
+
+    If --album/--albums is specified, all uploaded assets will be added to the specified album(s).
+    You can specify multiple albums by using the flag multiple times.
+    If an album doesn't exist, it will be created.
     """
     client = ctx.obj["client"]
-    asset_api = AssetAPI(client)
+    progress = ctx.obj.get("progress", True)
 
     try:
-        # Get progress settings from context
-        progress = ctx.obj.get("progress", True)
+        # Create upload helper
+        upload_helper = UploadHelper(client, album)
 
+        # Perform upload based on recursive flag
         if recursive:
-            results = asset_api.upload_assets(
+            results = upload_helper.upload_multiple(
                 file_path,
                 device_asset_id=device_asset_id,
                 device_id=device_id,
@@ -218,26 +435,8 @@ def upload(
                 sidecar_path=sidecar_path,
                 ignore_db=ignore_db,
             )
-
-            # Handle the case where a single file was uploaded
-            if isinstance(results, dict):
-                click.echo(f"Asset uploaded with ID: {results.get('id')}")
-                click.echo(f"Status: {results.get('status')}")
-                if results.get("message"):
-                    click.echo(f"Message: {results.get('message')}")
-            else:
-                # Handle the case where multiple files were uploaded
-                click.echo(f"Uploaded {len(results)} assets:")
-                for i, result in enumerate(results, 1):
-                    status_msg = (
-                        f"  {i}. ID: {result.get('id')}, Status: {result.get('status')}"
-                    )
-                    if result.get("message"):
-                        status_msg += f", Message: {result.get('message')}"
-                    click.echo(status_msg)
         else:
-            # Use the original upload_asset method for single file uploads
-            result = asset_api.upload_asset(
+            results = upload_helper.upload_single(
                 file_path,
                 device_asset_id=device_asset_id,
                 device_id=device_id,
@@ -247,10 +446,9 @@ def upload(
                 ignore_db=ignore_db,
                 show_progress=progress,
             )
-            click.echo(f"Asset uploaded with ID: {result.get('id')}")
-            click.echo(f"Status: {result.get('status')}")
-            if result.get("message"):
-                click.echo(f"Message: {result.get('message')}")
+
+        # Display results
+        _display_upload_results(results)
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
 
