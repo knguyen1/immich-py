@@ -10,11 +10,15 @@ from pathlib import Path
 from typing import Any
 
 import immich_py.api.upload_utils
+from immich_py.api.asset_hash import AssetHashDatabase, hash_file
 from immich_py.models.asset import Asset
 
 
 class AssetAPI:
     """API for interacting with assets in the Immich API."""
+
+    # Initialize the hash database once at the class level
+    _hash_db = AssetHashDatabase()
 
     def __init__(self, client):
         """
@@ -186,6 +190,7 @@ class AssetAPI:
         duration: str = "00:00:00.000000",
         is_read_only: bool = False,
         sidecar_path: str | Path | None = None,
+        ignore_db: bool = False,
     ) -> dict[str, Any]:
         """
         Upload an asset.
@@ -201,6 +206,7 @@ class AssetAPI:
             duration: The duration of the asset (for videos).
             is_read_only: Whether the asset is read-only.
             sidecar_path: The path to a sidecar file to upload.
+            ignore_db: Whether to ignore the hash database check.
 
         Returns
         -------
@@ -210,7 +216,21 @@ class AssetAPI:
         ------
             ImmichClientError: If the request fails.
         """
-        return self.client.upload_asset(
+        file_path = Path(file_path)
+
+        # Calculate the hash of the file
+        file_hash = hash_file(file_path)
+
+        # Check if the hash is already in the database
+        if not ignore_db and self._hash_db.contains_hash(file_hash):
+            return {
+                "id": "skipped",
+                "status": "skipped",
+                "message": f"Asset {file_path.name} already uploaded (hash: {file_hash})",
+            }
+
+        # Upload the asset
+        result = self.client.upload_asset(
             file_path,
             device_asset_id=device_asset_id,
             device_id=device_id,
@@ -222,6 +242,12 @@ class AssetAPI:
             is_read_only=is_read_only,
             sidecar_path=sidecar_path,
         )
+
+        # If upload was successful, add the hash to the database
+        if result.get("status") in ["created", "replaced"]:
+            self._hash_db.add_hash(file_hash)
+
+        return result
 
     def upload_assets(
         self,
@@ -236,6 +262,7 @@ class AssetAPI:
         duration: str = "00:00:00.000000",
         is_read_only: bool = False,
         sidecar_path: str | Path | None = None,
+        ignore_db: bool = False,
     ) -> list[dict[str, Any]] | dict[str, Any]:
         """
         Upload assets from a file, directory, or archive.
@@ -272,7 +299,10 @@ class AssetAPI:
         def upload_wrapper(path: str | Path, **upload_kwargs: Any) -> dict[str, Any]:
             # Extract sidecar_path from kwargs if it exists
             sidecar = upload_kwargs.pop("sidecar_path", None)
-            return self.client.upload_asset(path, sidecar_path=sidecar, **upload_kwargs)
+            # Use the upload_asset method with hash checking
+            return self.upload_asset(
+                path, sidecar_path=sidecar, ignore_db=ignore_db, **upload_kwargs
+            )
 
         # Prepare kwargs for the upload function
         kwargs = {

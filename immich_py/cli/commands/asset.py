@@ -173,6 +173,11 @@ def download(ctx: click.Context, asset_id: str, output: str | None) -> None:
     default=False,
     help="Process directories and archives recursively.",
 )
+@click.option(
+    "--ignore-db/--no-ignore-db",
+    default=False,
+    help="Ignore the hash database check (but still hash and append after successful upload).",
+)
 @click.pass_context
 def upload(
     ctx: click.Context,
@@ -183,6 +188,7 @@ def upload(
     archived: bool,
     sidecar_path: str | None,
     recursive: bool,
+    ignore_db: bool,
 ) -> None:
     """
     Upload an asset, directory of assets, or archive of assets.
@@ -203,19 +209,25 @@ def upload(
                 is_favorite=favorite,
                 is_archived=archived,
                 sidecar_path=sidecar_path,
+                ignore_db=ignore_db,
             )
 
             # Handle the case where a single file was uploaded
             if isinstance(results, dict):
                 click.echo(f"Asset uploaded with ID: {results.get('id')}")
                 click.echo(f"Status: {results.get('status')}")
+                if results.get("message"):
+                    click.echo(f"Message: {results.get('message')}")
             else:
                 # Handle the case where multiple files were uploaded
                 click.echo(f"Uploaded {len(results)} assets:")
                 for i, result in enumerate(results, 1):
-                    click.echo(
+                    status_msg = (
                         f"  {i}. ID: {result.get('id')}, Status: {result.get('status')}"
                     )
+                    if result.get("message"):
+                        status_msg += f", Message: {result.get('message')}"
+                    click.echo(status_msg)
         else:
             # Use the original upload_asset method for single file uploads
             result = asset_api.upload_asset(
@@ -225,9 +237,12 @@ def upload(
                 is_favorite=favorite,
                 is_archived=archived,
                 sidecar_path=sidecar_path,
+                ignore_db=ignore_db,
             )
             click.echo(f"Asset uploaded with ID: {result.get('id')}")
             click.echo(f"Status: {result.get('status')}")
+            if result.get("message"):
+                click.echo(f"Message: {result.get('message')}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
 
