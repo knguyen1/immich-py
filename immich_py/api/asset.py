@@ -265,7 +265,7 @@ class AssetAPI:
             )
 
             # If upload was successful, add the hash to the database
-            if result.get("status") in ["created", "replaced"]:
+            if result.get("status") in ["created", "replaced", "duplicate"]:
                 self._hash_db.add_hash(file_hash)
 
             # Mark progress as done with hash if successful

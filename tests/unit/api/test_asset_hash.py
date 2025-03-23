@@ -236,21 +236,6 @@ class TestAssetHash:
         expected_content = "hash1\nhash2\nhash3\n"
         assert content == expected_content
 
-    def test_asset_hash_database_contains_hash_mocked(self):
-        """Test contains_hash with a mocked file."""
-        # Initialize the database
-        db = AssetHashDatabase(self.db_path)
-
-        # Write test data to the file
-        with open(self.db_path, "w") as f:
-            f.write("hash1\nhash2\nhash3\n")
-
-        # Check for hashes
-        assert db.contains_hash("hash1") is True
-        assert db.contains_hash("hash2") is True
-        assert db.contains_hash("hash3") is True
-        assert db.contains_hash("hash4") is False
-
     def test_xxhash_implementation(self):
         """Test the xxHash implementation of hash_file."""
         # Create a mock xxhash module

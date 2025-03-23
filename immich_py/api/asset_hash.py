@@ -113,6 +113,25 @@ class AssetHashDatabase:
         if not self.db_path.exists():
             self.db_path.touch()
 
+        # Initialize in-memory cache
+        self._hash_cache = set()
+        self._load_cache()
+
+    def _load_cache(self) -> None:
+        """Load all hashes from the database file into memory."""
+        if not self.db_path.exists():
+            self._hash_cache.clear()
+            return
+
+        # Clear the cache before reloading
+        self._hash_cache.clear()
+
+        with self.db_path.open("r") as f:
+            for line in f:
+                hash_value = line.strip()
+                if hash_value:
+                    self._hash_cache.add(hash_value)
+
     def contains_hash(self, file_hash: str) -> bool:
         """
         Check if a hash is in the database.
@@ -126,13 +145,7 @@ class AssetHashDatabase:
         """
         if not self.db_path.exists():
             return False
-
-        with self.db_path.open("r") as f:
-            for line in f:
-                if line.strip() == file_hash:
-                    return True
-
-        return False
+        return file_hash in self._hash_cache
 
     def add_hash(self, file_hash: str) -> None:
         """
@@ -141,5 +154,9 @@ class AssetHashDatabase:
         Args:
             file_hash: The hash to add.
         """
+        # Add to in-memory cache
+        self._hash_cache.add(file_hash)
+
+        # Write to file
         with self.db_path.open("a") as f:
             f.write(f"{file_hash}\n")

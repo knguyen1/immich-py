@@ -80,7 +80,8 @@ def extract_archive(archive_path: str | Path, extract_dir: str | Path) -> None:
                 zip_ref.extract(file, extract_dir)
                 percent = (i / total_files) * 100
                 click.echo(
-                    f"\r{archive_path.name}: {i} / {total_files} ({percent:.1f}%)"
+                    f"\r{archive_path.name}: {i} / {total_files} ({percent:.1f}%)",
+                    nl=False,
                 )
             click.echo("\n")  # Print a newline after the progress is complete
     elif lower_suffix in [
@@ -108,7 +109,8 @@ def extract_archive(archive_path: str | Path, extract_dir: str | Path) -> None:
                 extracted_count += 1
                 percent = (extracted_count / total_files) * 100
                 click.echo(
-                    f"\r{archive_path.name}: {extracted_count} / {total_files} ({percent:.1f}%)"
+                    f"\r{archive_path.name}: {extracted_count} / {total_files} ({percent:.1f}%)",
+                    nl=False,
                 )
             click.echo("\n")  # Print a newline after the progress is complete
     else:
