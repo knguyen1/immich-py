@@ -197,11 +197,17 @@ def upload(
     If --recursive is specified and the file_path is a directory, all assets in the directory
     will be uploaded. If file_path is an archive (zip, tar, etc.), it will be extracted to a
     temporary directory and all assets will be uploaded.
+
+    The upload process can be visualized with progress bars and can utilize multiple concurrent
+    uploads for better performance.
     """
     client = ctx.obj["client"]
     asset_api = AssetAPI(client)
 
     try:
+        # Get progress settings from context
+        progress = ctx.obj.get("progress", True)
+
         if recursive:
             results = asset_api.upload_assets(
                 file_path,
@@ -239,6 +245,7 @@ def upload(
                 is_archived=archived,
                 sidecar_path=sidecar_path,
                 ignore_db=ignore_db,
+                show_progress=progress,
             )
             click.echo(f"Asset uploaded with ID: {result.get('id')}")
             click.echo(f"Status: {result.get('status')}")

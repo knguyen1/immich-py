@@ -54,6 +54,17 @@ from . import commands
     is_flag=True,
     help="Enable verbose output.",
 )
+@click.option(
+    "--progress/--no-progress",
+    default=True,
+    help="Show progress bars during upload.",
+)
+@click.option(
+    "--max-workers",
+    type=int,
+    default=5,
+    help="Maximum number of concurrent uploads.",
+)
 @click.pass_context
 def main(
     ctx: click.Context,
@@ -63,6 +74,8 @@ def main(
     timeout: float,
     dry_run: bool,
     verbose: bool,
+    progress: bool,
+    max_workers: int,
 ) -> None:
     """Command-line interface for interacting with the Immich API."""
     # Create the Immich client
@@ -74,10 +87,18 @@ def main(
         dry_run=dry_run,
     )
 
+    # Configure progress bar settings
+    if progress:
+        from immich_py.progress import set_max_workers
+
+        set_max_workers(max_workers)
+
     # Store the client in the context
     ctx.obj = {
         "client": client,
         "verbose": verbose,
+        "progress": progress,
+        "max_workers": max_workers,
     }
 
 

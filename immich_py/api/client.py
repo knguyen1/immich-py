@@ -8,7 +8,7 @@ import mimetypes
 import platform
 import types
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
@@ -716,6 +716,7 @@ class ImmichClient:
         duration: str = "00:00:00.000000",
         is_read_only: bool = False,
         sidecar_path: str | Path | None = None,
+        progress_callback: Callable[[int], None] | None = None,
     ) -> dict[str, Any]:
         """
         Upload an asset.
@@ -731,6 +732,7 @@ class ImmichClient:
             duration: The duration of the asset (for videos).
             is_read_only: Whether the asset is read-only.
             sidecar_path: The path to a sidecar file to upload.
+            progress_callback: Optional callback function to report upload progress.
 
         Returns
         -------
@@ -785,12 +787,34 @@ class ImmichClient:
             "isReadOnly": str(is_read_only).lower(),
         }
 
+        # Create a custom file-like object that reports progress
+        class ProgressFileWrapper:
+            def __init__(self, file, callback=None):
+                self.file = file
+                self.callback = callback or (lambda _: None)
+
+            def read(self, size=-1):
+                data = self.file.read(size)
+                if data:
+                    self.callback(len(data))
+                return data
+
+            def seek(self, *args, **kwargs):
+                return self.file.seek(*args, **kwargs)
+
+            def tell(self):
+                return self.file.tell()
+
+            def close(self):
+                return self.file.close()
+
         # Use context managers for file resources
         with Path.open(file_path, "rb") as asset_file:
+            wrapped_file = ProgressFileWrapper(asset_file, progress_callback)
             files = {
                 "assetData": (
                     file_name,
-                    asset_file,
+                    wrapped_file,
                     self._get_mime_type(file_path),
                 )
             }
@@ -803,6 +827,7 @@ class ImmichClient:
                     raise ImmichClientError(msg)
 
                 with Path.open(sidecar_path, "rb") as sidecar_file:
+                    # We don't track progress for sidecar files
                     files["sidecarData"] = (
                         sidecar_path.name,
                         sidecar_file,

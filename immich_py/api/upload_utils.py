@@ -7,6 +7,7 @@ This module contains utility functions for uploading assets to Immich,
 including handling directories and compressed archives.
 """
 
+import concurrent.futures
 import logging
 import tarfile
 import tempfile
@@ -14,6 +15,8 @@ import zipfile
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+
+from immich_py.progress import add_album, remove_album
 
 logger = logging.getLogger(__name__)
 
@@ -104,16 +107,65 @@ def process_directory(
     directory_path = Path(directory_path)
     results = []
 
-    for item in directory_path.rglob("*"):
-        if item.is_file() and not item.name.startswith("."):
-            try:
-                result = upload_func(item, **kwargs)
-                results.append(result)
-            except Exception:
-                logger.exception("Error uploading %s", item)
-                # Log the error but continue with other files
+    # Get all files in the directory
+    files = [
+        item
+        for item in directory_path.rglob("*")
+        if item.is_file() and not item.name.startswith(".")
+    ]
+
+    # Add directory name as album title for progress display
+    album_name = directory_path.name
+    add_album(album_name)
+
+    try:
+        # Use ThreadPoolExecutor for parallel uploads
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            # Submit all upload tasks
+            future_to_file = {
+                executor.submit(upload_file, upload_func, file_path, kwargs): file_path
+                for file_path in files
+            }
+
+            # Process results as they complete
+            for future in concurrent.futures.as_completed(future_to_file):
+                file_path = future_to_file[future]
+                try:
+                    result = future.result()
+                    if result is not None:
+                        results.append(result)
+                except Exception:
+                    logger.exception("Error uploading %s", file_path)
+                    # Log the error but continue with other files
+    finally:
+        # Remove album title from progress display
+        remove_album(album_name)
 
     return results
+
+
+def upload_file(
+    upload_func: Callable[[str | Path, dict[str, Any]], dict[str, Any]],
+    file_path: Path,
+    kwargs: dict[str, Any],
+) -> dict[str, Any] | None:
+    """
+    Upload a single file.
+
+    Args:
+        upload_func: The function to call for the file.
+        file_path: The path to the file.
+        kwargs: Additional arguments to pass to the upload function.
+
+    Returns
+    -------
+        The response from the upload function, or None if an error occurred.
+    """
+    try:
+        return upload_func(file_path, **kwargs)
+    except Exception:
+        logger.exception("Error uploading %s", file_path)
+        return None
 
 
 def process_archive(

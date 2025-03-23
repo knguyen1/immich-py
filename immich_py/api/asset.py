@@ -13,6 +13,13 @@ from typing import Any
 import immich_py.api.upload_utils
 from immich_py.api.asset_hash import AssetHashDatabase, hash_file
 from immich_py.models.asset import Asset
+from immich_py.progress import (
+    add_album,
+    clear_progress,
+    get_progress_callback,
+    remove_album,
+    set_max_workers,
+)
 
 
 class AssetAPI:
@@ -192,6 +199,7 @@ class AssetAPI:
         is_read_only: bool = False,
         sidecar_path: str | Path | None = None,
         ignore_db: bool = False,
+        show_progress: bool = True,
     ) -> dict[str, Any]:
         """
         Upload an asset.
@@ -208,6 +216,7 @@ class AssetAPI:
             is_read_only: Whether the asset is read-only.
             sidecar_path: The path to a sidecar file to upload.
             ignore_db: Whether to ignore the hash database check.
+            show_progress: Whether to show a progress bar.
 
         Returns
         -------
@@ -230,25 +239,45 @@ class AssetAPI:
                 "message": f"Asset {file_path.name} already uploaded (hash: {file_hash})",
             }
 
+        # Get file size for progress reporting
+        file_size = Path.stat().st_size(file_path)
+
+        # Create progress callback
+        progress_callback = None
+        if show_progress:
+            progress_handle = get_progress_callback(True, file_size, file_path.name)
+            progress_callback = progress_handle.update
+
         # Upload the asset
-        result = self.client.upload_asset(
-            file_path,
-            device_asset_id=device_asset_id,
-            device_id=device_id,
-            is_favorite=is_favorite,
-            is_archived=is_archived,
-            file_created_at=file_created_at,
-            file_modified_at=file_modified_at,
-            duration=duration,
-            is_read_only=is_read_only,
-            sidecar_path=sidecar_path,
-        )
+        try:
+            result = self.client.upload_asset(
+                file_path,
+                device_asset_id=device_asset_id,
+                device_id=device_id,
+                is_favorite=is_favorite,
+                is_archived=is_archived,
+                file_created_at=file_created_at,
+                file_modified_at=file_modified_at,
+                duration=duration,
+                is_read_only=is_read_only,
+                sidecar_path=sidecar_path,
+                progress_callback=progress_callback,
+            )
 
-        # If upload was successful, add the hash to the database
-        if result.get("status") in ["created", "replaced"]:
-            self._hash_db.add_hash(file_hash)
+            # If upload was successful, add the hash to the database
+            if result.get("status") in ["created", "replaced"]:
+                self._hash_db.add_hash(file_hash)
 
-        return result
+            # Mark progress as done with hash if successful
+            if show_progress and progress_callback:
+                progress_handle.done(True, file_hash)
+        except Exception:
+            # Mark progress as failed
+            if show_progress and progress_callback:
+                progress_handle.done(False)
+            raise
+        else:
+            return result
 
     def upload_assets(
         self,
@@ -264,6 +293,8 @@ class AssetAPI:
         is_read_only: bool = False,
         sidecar_path: str | Path | None = None,
         ignore_db: bool = False,
+        show_progress: bool = True,
+        max_workers: int = 5,
     ) -> list[dict[str, Any]] | dict[str, Any]:
         """
         Upload assets from a file, directory, or archive.
@@ -283,6 +314,9 @@ class AssetAPI:
             duration: The duration of the assets (for videos).
             is_read_only: Whether the assets are read-only.
             sidecar_path: The path to a sidecar file to upload (only used for single file uploads).
+            ignore_db: Whether to ignore the hash database check.
+            show_progress: Whether to show a progress bar.
+            max_workers: Maximum number of concurrent uploads.
 
         Returns
         -------
@@ -295,6 +329,9 @@ class AssetAPI:
             FileNotFoundError: If the file, directory, or archive does not exist.
             ValueError: If the archive format is not supported.
         """
+        # Set the maximum number of concurrent uploads
+        if show_progress:
+            set_max_workers(max_workers)
 
         # Create a wrapper function that matches the expected signature for process_upload_path
         def upload_wrapper(path: str | Path, **upload_kwargs: Any) -> dict[str, Any]:
@@ -302,7 +339,11 @@ class AssetAPI:
             sidecar = upload_kwargs.pop("sidecar_path", None)
             # Use the upload_asset method with hash checking
             return self.upload_asset(
-                path, sidecar_path=sidecar, ignore_db=ignore_db, **upload_kwargs
+                path,
+                sidecar_path=sidecar,
+                ignore_db=ignore_db,
+                show_progress=show_progress,
+                **upload_kwargs,
             )
 
         # Prepare kwargs for the upload function
@@ -326,9 +367,27 @@ class AssetAPI:
         ):
             kwargs["sidecar_path"] = sidecar_path
 
-        return immich_py.api.upload_utils.process_upload_path(
-            file_path, upload_wrapper, **kwargs
-        )
+        # If it's a directory, add it as an album title for progress display
+        if file_path_obj.is_dir() and show_progress:
+            album_name = file_path_obj.name
+            add_album(album_name)
+            try:
+                return immich_py.api.upload_utils.process_upload_path(
+                    file_path, upload_wrapper, **kwargs
+                )
+            finally:
+                remove_album(album_name)
+                # Clean up progress display when done
+                clear_progress()
+        else:
+            try:
+                return immich_py.api.upload_utils.process_upload_path(
+                    file_path, upload_wrapper, **kwargs
+                )
+            finally:
+                if show_progress:
+                    # Clean up progress display when done
+                    clear_progress()
 
     def replace_asset(
         self,
