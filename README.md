@@ -2,6 +2,12 @@
 
 A Python client library and CLI for interacting with the [Immich](https://immich.app/) API.
 
+## 🚀 TLDR
+
+```bash
+immich-py -e 'https://pics.my.server.com' -k 'abc123' asset upload <directory-or-archive-path> --recursive
+```
+
 ## Installation
 
 ```bash
