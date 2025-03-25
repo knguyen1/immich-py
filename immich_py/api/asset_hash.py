@@ -7,6 +7,7 @@ This module contains utilities for hashing assets and tracking them in a databas
 """
 
 import hashlib
+import threading
 from collections.abc import Callable
 from pathlib import Path
 
@@ -89,7 +90,7 @@ except ImportError:
 
 
 class AssetHashDatabase:
-    """Database for tracking uploaded asset hashes."""
+    """Thread-safe database for tracking uploaded asset hashes."""
 
     def __init__(self, db_path: str | Path | None = None):
         """
@@ -115,22 +116,27 @@ class AssetHashDatabase:
 
         # Initialize in-memory cache
         self._hash_cache = set()
+
+        # Initialize lock for thread-safety
+        self._lock = threading.Lock()
+
         self._load_cache()
 
     def _load_cache(self) -> None:
         """Load all hashes from the database file into memory."""
-        if not self.db_path.exists():
+        with self._lock:
+            if not self.db_path.exists():
+                self._hash_cache.clear()
+                return
+
+            # Clear the cache before reloading
             self._hash_cache.clear()
-            return
 
-        # Clear the cache before reloading
-        self._hash_cache.clear()
-
-        with self.db_path.open("r") as f:
-            for line in f:
-                hash_value = line.strip()
-                if hash_value:
-                    self._hash_cache.add(hash_value)
+            with self.db_path.open("r") as f:
+                for line in f:
+                    hash_value = line.strip()
+                    if hash_value:
+                        self._hash_cache.add(hash_value)
 
     def contains_hash(self, file_hash: str) -> bool:
         """
@@ -143,9 +149,10 @@ class AssetHashDatabase:
         -------
             True if the hash is in the database, False otherwise.
         """
-        if not self.db_path.exists():
-            return False
-        return file_hash in self._hash_cache
+        with self._lock:
+            if not self.db_path.exists():
+                return False
+            return file_hash in self._hash_cache
 
     def add_hash(self, file_hash: str) -> None:
         """
@@ -154,9 +161,13 @@ class AssetHashDatabase:
         Args:
             file_hash: The hash to add.
         """
-        # Add to in-memory cache
-        self._hash_cache.add(file_hash)
+        with self._lock:
+            if file_hash in self._hash_cache:
+                return
 
-        # Write to file
-        with self.db_path.open("a") as f:
-            f.write(f"{file_hash}\n")
+            # Add to in-memory cache
+            self._hash_cache.add(file_hash)
+
+            # Write to file
+            with self.db_path.open("a") as f:
+                f.write(f"{file_hash}\n")

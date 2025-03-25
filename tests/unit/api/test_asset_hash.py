@@ -8,6 +8,8 @@ import os
 import shutil
 import sys
 import tempfile
+import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -278,3 +280,57 @@ class TestAssetHash:
 
             # Reload the module to restore the original implementation
             importlib.reload(immich_py.api.asset_hash)
+
+    def test_asset_hash_database_thread_safety(self):
+        """Test thread safety of the AssetHashDatabase."""
+        db = AssetHashDatabase(self.db_path)
+
+        num_threads = 10
+        hashes_per_thread = 50
+
+        def add_hashes(thread_id):
+            for i in range(hashes_per_thread):
+                hash_value = f"thread_{thread_id}_hash_{i}"
+                db.add_hash(hash_value)
+                # Small sleep to increase the chance of thread interleaving
+                time.sleep(0.001)
+
+        # Create and start threads
+        with ThreadPoolExecutor(max_workers=num_threads) as executor:
+            futures = [executor.submit(add_hashes, i) for i in range(num_threads)]
+
+            # Wait for all threads to complete
+            for future in futures:
+                future.result()
+
+        # Verify that all hashes are added correctly
+        # First, reload the database to ensure we're reading from disk
+        new_db = AssetHashDatabase(self.db_path)
+
+        # Check that all expected hashes are in the database
+        for thread_id in range(num_threads):
+            for i in range(hashes_per_thread):
+                hash_value = f"thread_{thread_id}_hash_{i}"
+                assert new_db.contains_hash(hash_value), f"Missing hash: {hash_value}"
+
+        # Count the number of lines in the file to ensure no duplicates
+        with Path.open(self.db_path) as f:
+            lines = f.readlines()
+
+        assert len(set(lines)) == len(lines), (
+            "Duplicate hashes found in the database file"
+        )
+
+    def test_hash_keep_adding_a_duplicate(self):
+        """Test that adding the same hash multiple times only writes it once."""
+        db = AssetHashDatabase(self.db_path)
+
+        test_hash = "duplicate_test_hash"
+        for _ in range(5):
+            db.add_hash(test_hash)
+
+        with Path.open(self.db_path) as f:
+            content = f.readlines()
+
+        occurences = content.count(f"{test_hash}\n")
+        assert occurences == 1, f"Hash was written {occurences} times"
