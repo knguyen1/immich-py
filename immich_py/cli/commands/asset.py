@@ -333,27 +333,46 @@ def _display_upload_results(results: list[dict[str, Any]] | dict[str, Any]) -> N
     """
     # Handle the case where a single file was uploaded
     if isinstance(results, dict):
-        # Get filename from the result if available
-        filename = results.get("filename")
+        if results.get("status") != "created":
+            # Get filename from the result if available
+            filename = results.get("filename")
 
-        # If not available in the result, try to extract from message
-        if not filename and results.get("message"):
-            # For skipped files, the filename is in the message
-            message = results.get("message", "")
-            if "Asset " in message and " already uploaded" in message:
-                filename = message.split("Asset ")[1].split(" already uploaded")[0]
+            # If not available in the result, try to extract from message
+            if not filename and results.get("message"):
+                # For skipped files, the filename is in the message
+                message = results.get("message", "")
+                if "Asset " in message and " already uploaded" in message:
+                    filename = message.split("Asset ")[1].split(" already uploaded")[0]
 
-        click.echo(f"Asset uploaded with ID: {results.get('id')}")
-        if filename:
-            click.echo(f"Filename: {filename}")
-        click.echo(f"Status: {results.get('status')}")
-        if results.get("message"):
-            click.echo(f"Message: {results.get('message')}")
+            click.echo(f"Asset uploaded with ID: {results.get('id')}")
+            if filename:
+                click.echo(f"Filename: {filename}")
+            click.echo(f"Status: {results.get('status')}")
+            if results.get("message"):
+                click.echo(f"Message: {results.get('message')}")
     else:
-        # Handle the case where multiple files were uploaded
-        click.echo(f"Uploaded {len(results)} assets:")
+        skipped_count = sum(
+            1 for result in results if result.get("status") == "skipped"
+        )
+        error_count = sum(
+            1
+            for result in results
+            if result.get("status") not in ["created", "skipped"]
+        )
+
+        summary_parts = []
+        if skipped_count > 0:
+            summary_parts.append(f"Skipped {skipped_count} assets")
+        if error_count > 0:
+            summary_parts.append(f"Errored {error_count} assets")
+
+        click.echo("; ".join(summary_parts))
 
         for i, result in enumerate(results, 1):
+            # Don't print "created" assets
+            if result.get("status") == "created":
+                continue
+
             # Get filename from the result if available
             filename = result.get("filename")
 

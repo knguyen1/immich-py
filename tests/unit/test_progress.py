@@ -172,7 +172,7 @@ class TestProgressManager:
             mock_update.assert_called_once_with(
                 1,
                 description=expected_description,
-                visible=False,
+                completed=True,
             )
 
     def test_callback_done_failure(self):
@@ -194,7 +194,7 @@ class TestProgressManager:
             mock_update.assert_called_once_with(
                 1,
                 description="[cyan]test.jpg[/cyan] [red]Failed[/red]",
-                visible=False,
+                completed=False,
             )
 
     def test_cleanup(self):

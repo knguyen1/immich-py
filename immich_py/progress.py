@@ -95,7 +95,7 @@ class ProgressManager:
                     self.progress.update(
                         task_id,
                         description=f"[cyan]{filename}[/cyan] {status}",
-                        visible=False,
+                        completed=success,
                     )
 
             return ProgressHandle(_callback_update, _callback_done)
