@@ -529,3 +529,21 @@ class AssetAPI:
         """
         data = self.client.get_assets_by_name(name)
         return [Asset.from_dict(asset) for asset in data]
+
+    def search_assets_by_filename_pattern(self, pattern: str) -> list[dict[str, Any]]:
+        """
+        Search for assets whose filename contain a specified pattern.
+
+        Args:
+            pattern: The pattern to search for in filenames.
+
+        Returns
+        -------
+            A list of assets whose filenames contain the pattern.
+
+        Raises
+        ------
+            ImmichClientError: If the request fails.
+        """
+        data = self.client.search_assets_by_filename_pattern(pattern)
+        return [Asset.from_dict(asset) for asset in data]

@@ -1052,6 +1052,47 @@ class ImmichClient:
         assets = self.search_assets(original_file_name=name)
         return [asset for asset in assets if asset.get("originalFileName") == name]
 
+    def search_assets_by_filename_pattern(self, pattern: str) -> list[dict[str, Any]]:
+        """
+        Search for assets whose filename contain a specified pattern.
+
+        Args:
+            pattern: The pattern to search for in filenames.
+
+        Returns
+        -------
+            A list of assets whose filenames contain the pattern.
+
+        Raises
+        ------
+            ImmichClientError: If the request fails.
+        """
+        # Use the metadata search endpoint with `originalFileName` parameter.
+        query = {"originalFileName": pattern, "size": 999, "page": 1}
+
+        assets = []
+        while True:
+            response = self.post(
+                "/search/metadata",
+                json_data=query,
+                endpoint_name="SearchAssetsByFilename",
+            )
+            assets_result = response.get("assets", {})
+
+            # Extract the assets from the response
+            items = assets_result.get("items", [])
+            assets.extend(items)
+
+            # Check if there are more pages
+            next_page = assets_result.get("nextPage")
+            if not next_page:
+                break
+
+            # Update the page number for the next request
+            query["page"] = int(next_page)
+
+        return assets
+
     # Album API methods
 
     def get_all_albums(self) -> list[dict[str, Any]]:
